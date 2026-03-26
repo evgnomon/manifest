@@ -136,7 +136,7 @@ const array_examples = struct {
         _ = concat;
 
         // Array multiplication (comptime)
-        const repeated = [_]u8{ 0xAB } ** 4;
+        const repeated = [_]u8{0xAB} ** 4;
         _ = repeated;
     }
 };
@@ -214,7 +214,7 @@ const Color = enum(u8) {
     red = 0,
     green = 1,
     blue = 2,
-    _,         // non-exhaustive: allows other values
+    _, // non-exhaustive: allows other values
 
     fn isWarm(self: Color) bool {
         return self == .red;
@@ -377,7 +377,7 @@ fn errdefer_example() !void {
     }
     // defer always runs
     defer {
-        _ = resource;
+        std.debug.print("Resource value at end: {d}\n", .{resource});
     }
 }
 
@@ -430,7 +430,7 @@ fn control_flow_demo() void {
     switch (color) {
         .red => {},
         .green, .blue => {},
-        _ => {},  // non-exhaustive catch-all
+        _ => {}, // non-exhaustive catch-all
     }
 
     // switch as expression with ranges
@@ -470,7 +470,7 @@ fn labeled_demo() !void {
     outer: for (0..10) |i| {
         for (0..10) |j| {
             if (i + j > 12) break :outer;
-            _ = j;
+            std.debug.print("i: {d}, j: {d}\n", .{ i, j });
         }
     }
 }
@@ -650,14 +650,14 @@ fn Matrix(comptime T: type, comptime rows: usize, comptime cols: usize) type {
 
 // Compile-time string processing
 fn comptimeUpperCase(comptime input: []const u8) *const [input.len]u8 {
-    comptime {
+    return comptime blk: {
         var result: [input.len]u8 = undefined;
         for (input, 0..) |c, i| {
             result[i] = if (c >= 'a' and c <= 'z') c - 32 else c;
         }
         const final = result;
-        return &final;
-    }
+        break :blk &final;
+    };
 }
 
 // Compile-time fibonacci
@@ -702,7 +702,7 @@ fn builtin_showcase() void {
     const y: u64 = @intCast(x);
     _ = y;
     const z: f64 = @floatFromInt(x);
-    _ = z;
+    // _ = z;
     const w: u32 = @intFromFloat(z);
     _ = w;
 
@@ -1157,21 +1157,8 @@ fn FieldPair(comptime K: type, comptime V: type) type {
 
 // Create an enum from a list of names
 fn MakeEnum(comptime names: []const []const u8) type {
-    var fields: [names.len]std.builtin.Type.EnumField = undefined;
-    for (names, 0..) |name, i| {
-        fields[i] = .{
-            .name = name,
-            .value = i,
-        };
-    }
-    return @Type(.{
-        .@"enum" = .{
-            .tag_type = std.math.IntFittingRange(0, names.len - 1),
-            .fields = &fields,
-            .decls = &.{},
-            .is_exhaustive = true,
-        },
-    });
+    const initTags = std.math.IntFittingRange(0, names.len - 1);
+    return @Enum(initTags, .exhaustive, names, &std.simd.iota(initTags, names.len));
 }
 
 const Fruit = MakeEnum(&.{ "apple", "banana", "cherry" });
@@ -1338,23 +1325,24 @@ comptime {
     if (@sizeOf(usize) < 4) @compileError("Need at least 32-bit platform");
 }
 
-// ============================================================================
-// 38. ASSEMBLY (inline asm)
-// ============================================================================
+// // ============================================================================
+// // 38. ASSEMBLY (inline asm)
+// // ============================================================================
 
-fn inline_asm_demo() u64 {
-    // Read CPU timestamp counter (x86_64)
-    if (builtin.cpu.arch == .x86_64) {
-        var low: u32 = undefined;
-        var high: u32 = undefined;
-        asm volatile ("rdtsc"
-            : "={eax}" (low),
-              "={edx}" (high),
-        );
-        return (@as(u64, high) << 32) | low;
-    }
-    return 0;
-}
+// fn inline_asm_demo() u64 {
+//     if (builtin.cpu.arch == .x86_64) {
+//         var low: u32 = undefined;
+//         var high: u32 = undefined;
+//         asm volatile ("rdtsc"
+//             : [low] "={eax}" (low),
+//               [high] "={edx}" (high),
+//             :
+//             :
+//         );
+//         return (@as(u64, high) << 32) | low;
+//     }
+//     return 0;
+// }
 
 // ============================================================================
 // 39. BUILD SYSTEM INTEGRATION (build.zig concepts)
@@ -1611,11 +1599,10 @@ fn field_parent_demo() void {
         value: u32,
         hook: Node.ListNode = .{},
     };
-
     var c = Container{ .value = 42, .hook = .{} };
     const hook_ptr = &c.hook;
     // Get back to Container from hook pointer
-    const container = @fieldParentPtr(Container, "hook", hook_ptr);
+    const container: *Container = @fieldParentPtr(hook_ptr, "hook");
     _ = container.value; // 42
 }
 
@@ -1624,6 +1611,7 @@ fn field_parent_demo() void {
 // ============================================================================
 
 const crc32_table = blk: {
+    @setEvalBranchQuota(10000);
     var table: [256]u32 = undefined;
     for (0..256) |i| {
         var crc: u32 = @intCast(i);
@@ -1657,8 +1645,10 @@ test "crc32 lookup table" {
 // MAIN
 // ============================================================================
 
-pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
+pub fn main(init: std.process.Init) !void {
+    var stdout_buffer: [4096]u8 = undefined;
+    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
+    const stdout = &stdout_writer.interface;
 
     try stdout.print(
         \\
@@ -1667,81 +1657,62 @@ pub fn main() !void {
         \\╠══════════════════════════════════════════════╣
         \\
     , .{});
-
     // 1. Types
     try stdout.print("║ 1.  Primitive types & literals              ║\n", .{});
     try stdout.print("║     u8={d}, i32 min={d}        ║\n", .{ primitive_examples.a_u8, primitive_examples.a_i32 });
-
     // 2. Strings
     try stdout.print("║ 2.  String: {s}                 ║\n", .{string_examples.hello});
-
     // 3. Struct method
     const p1 = Point{ .x = 3, .y = 4 };
     const p2 = Point.origin();
     try stdout.print("║ 3.  Point distance: {d:.2}                   ║\n", .{p1.distance(p2)});
-
     // 4. Comptime
     try stdout.print("║ 4.  Comptime sum(1..100) = {d}              ║\n", .{comptime_result});
     try stdout.print("║ 5.  Comptime fib(10) = {d}                  ║\n", .{comptimeFib(10)});
     try stdout.print("║ 6.  Comptime upper: {s}                ║\n", .{comptimeUpperCase("hello")});
-
     // 5. Generics
     var stack = Stack(u32){};
     try stack.push(10);
     try stack.push(20);
     try stack.push(30);
     try stdout.print("║ 7.  Stack pop: {?d}                         ║\n", .{stack.pop()});
-
     // 6. Error handling
     const div_result = divide(22, 7) catch 0;
     try stdout.print("║ 8.  22/7 = {d:.6}                      ║\n", .{div_result});
-
     // 7. Generic max
     try stdout.print("║ 9.  max(42, 17) = {d}                       ║\n", .{max_generic(u32, 42, 17)});
-
     // 8. Function from function
     const op = get_operation('+');
     try stdout.print("║ 10. op(3,4) = {d}                            ║\n", .{op(3, 4)});
-
     // 9. SIMD
     const v: @Vector(4, f32) = .{ 1, 2, 3, 4 };
     const sum = @reduce(.Add, v);
     try stdout.print("║ 11. SIMD reduce sum = {d:.1}                ║\n", .{sum});
-
     // 10. Matrix
     const Mat3 = Matrix(f64, 3, 3);
     const eye = Mat3.identity();
     try stdout.print("║ 12. Matrix[1][1] = {d:.0} (identity)          ║\n", .{eye.data[1][1]});
-
     // 11. CRC
     try stdout.print("║ 13. CRC32(\"Hello\") = 0x{X:0>8}          ║\n", .{crc32("Hello")});
-
     // 12. Enum
     try stdout.print("║ 14. North opposite = {s}                ║\n", .{@tagName(Direction.north.opposite())});
-
     // 13. Closure emulation
     const add5 = makeAdder(5);
     try stdout.print("║ 15. Closure add5(3) = {d}                    ║\n", .{add5.call(3)});
-
     // 14. Special arithmetic
-    const sat: u8 = 200 +| 100;
+    const sat: u8 = @as(u8, 200) +| @as(u8, 100);
     try stdout.print("║ 16. Saturating 200+|100 = {d}                ║\n", .{sat});
-
     // 15. Comptime enum
     try stdout.print("║ 17. Comptime enum Fruit: {s}            ║\n", .{@tagName(Fruit.banana)});
-
     // 16. Arch info
     try stdout.print("║ 18. Target arch: {s}                   ║\n", .{@tagName(builtin.cpu.arch)});
-
     // 17. Atomic counter
     var counter = AtomicCounter.init();
     counter.increment();
     counter.increment();
     try stdout.print("║ 19. Atomic counter: {d}                       ║\n", .{counter.load()});
-
     // Allocator demo
     try stdout.print("║ 20. Allocators, JSON, sorting...   [OK]     ║\n", .{});
-
     try stdout.print(
         \\╠══════════════════════════════════════════════╣
         \\║  47 features showcased. Run tests with:      ║
@@ -1749,4 +1720,6 @@ pub fn main() !void {
         \\╚══════════════════════════════════════════════╝
         \\
     , .{});
+
+    try stdout.flush();
 }
