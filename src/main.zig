@@ -1043,11 +1043,11 @@ fn useHandle(h: *Handle) void {
 
 const MixinExample = struct {
     // Brings all declarations from another namespace into this one
-    pub usingnamespace struct {
-        pub fn mixedInFunction() u32 {
-            return 42;
-        }
-    };
+    fn mixedInFunctionPriv() u32 {
+        return 42;
+    }
+
+    const mixedInFunction = if (true) mixedInFunctionPriv else unreachable;
 };
 
 // ============================================================================
