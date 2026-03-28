@@ -8,6 +8,8 @@ showcase
 
 /target
 /cpp_manifest
+/obj
+/bin
 
 
 # Added by cargo
