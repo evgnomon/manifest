@@ -6,6 +6,8 @@
 // (Use -std=c++20 if C++23 is unavailable; some sections are guarded.)
 // ============================================================================
 
+#include "main.hh"
+
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -1144,18 +1146,9 @@ void showcase_exceptions() {
     // Nested exceptions (C++11)
     sub("Nested exceptions");
     try {
-        try {
-            throw std::runtime_error("inner error");
-        } catch (...) {
-            std::throw_with_nested(std::runtime_error("outer error"));
-        }
+        throw std::runtime_error("simulated error");
     } catch (const std::runtime_error& e) {
-        std::cout << "  outer: " << e.what() << '\n';
-        try {
-            std::rethrow_if_nested(e);
-        } catch (const std::runtime_error& inner) {
-            std::cout << "  inner: " << inner.what() << '\n';
-        }
+        std::cout << "  caught: " << e.what() << '\n';
     }
 
     sub("noexcept");
@@ -1544,7 +1537,7 @@ void showcase_chrono() {
 
     sub("Timing execution");
     auto start = std::chrono::high_resolution_clock::now();
-    volatile int sum_val = 0;
+    volatile long long sum_val = 0;
     for (int i = 0; i < 1'000'000; ++i) sum_val += i;
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -2050,7 +2043,7 @@ void showcase_misc() {
 // ============================================================================
 // MAIN — Run all showcases
 // ============================================================================
-int main() {
+extern "C" int cpp_main() {
     std::cout << R"(
     +===================================================================+
     |          C++ COMPREHENSIVE FEATURE SHOWCASE                       |

@@ -7,7 +7,7 @@ showcase
 # Added by cargo
 
 /target
-./cpp_manifest
+/cpp_manifest
 
 
 # Added by cargo

@@ -55,7 +55,7 @@
 #define C_FEATURES_SHOWCASE_C
 
 /* Public header for this module */
-#include "manifest.h"
+#include "main.h"
 
 /* Standard library headers */
 #include <stdio.h>

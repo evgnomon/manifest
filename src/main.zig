@@ -1344,50 +1344,6 @@ comptime {
 //     return 0;
 // }
 
-// ============================================================================
-// 39. BUILD SYSTEM INTEGRATION (build.zig concepts)
-// ============================================================================
-
-// The Zig build system uses build.zig, which is itself Zig code.
-// Key concepts (cannot be demonstrated in-file, described for completeness):
-//
-// pub fn build(b: *std.Build) void {
-//     const target = b.standardTargetOptions(.{});
-//     const optimize = b.standardOptimizeOption(.{});
-//
-//     // Executable
-//     const exe = b.addExecutable(.{
-//         .name = "myapp",
-//         .root_source_file = b.path("src/main.zig"),
-//         .target = target,
-//         .optimize = optimize,
-//     });
-//     b.installArtifact(exe);
-//
-//     // Tests
-//     const tests = b.addTest(.{
-//         .root_source_file = b.path("src/main.zig"),
-//     });
-//     const run_tests = b.addRunArtifact(tests);
-//     const test_step = b.step("test", "Run tests");
-//     test_step.dependOn(&run_tests.step);
-//
-//     // Link C library
-//     exe.linkSystemLibrary("c");
-//     exe.linkSystemLibrary("pthread");
-//
-//     // Add C source files
-//     exe.addCSourceFile(.{ .file = b.path("src/legacy.c") });
-//
-//     // Cross-compilation is a first-class feature:
-//     // zig build -Dtarget=aarch64-linux-gnu
-//     // zig build -Dtarget=x86_64-windows-msvc
-// }
-
-// ============================================================================
-// 40. STANDARD LIBRARY HIGHLIGHTS
-// ============================================================================
-
 fn stdlib_demo() !void {
     const alloc = std.heap.page_allocator;
 
@@ -1722,4 +1678,8 @@ pub fn main(init: std.process.Init) !void {
     , .{});
 
     try stdout.flush();
+
+    // Call the C++ showcase via the extern "C" bridge
+    const manifest = @import("manifest");
+    _ = manifest.cpp.cpp_main();
 }
