@@ -10,6 +10,9 @@ showcase
 /cpp_manifest
 /obj
 /bin
+.bsp
+.scala-build
+main.scala
 
 
 # Added by cargo
