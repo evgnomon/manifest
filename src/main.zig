@@ -10,6 +10,8 @@ const math = std.math;
 const testing = std.testing;
 const Allocator = std.mem.Allocator;
 
+const channel = @import("channel.zig");
+
 // ============================================================================
 // 1. PRIMITIVE TYPES & LITERALS
 // ============================================================================
@@ -1682,4 +1684,6 @@ pub fn main(init: std.process.Init) !void {
     // Call the C++ showcase via the extern "C" bridge
     const manifest = @import("manifest");
     _ = manifest.cpp.cpp_main();
+
+    try channel.channel_main(init.io);
 }
